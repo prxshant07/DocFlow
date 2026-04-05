@@ -21,10 +21,7 @@ from app.core.config import settings
 
 # ─── Synchronous DB + Redis (Celery workers are sync) ─────────────────────────
 
-sync_engine = create_engine(
-    "postgresql://postgres:ZqvSPGSHLUZkzeweRLMWsPoxnxfcWRTl@postgres.railway.internal:5432/railway",
-    pool_pre_ping=True
-)
+sync_engine = create_engine("postgresql://postgres:ZqvSPGSHLUZkzeweRLMWsPoxnxfcWRTl@postgres.railway.internal:5432/railway", pool_pre_ping=True)
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
