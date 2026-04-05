@@ -4,6 +4,9 @@ from typing import AsyncGenerator
 
 from app.core.config import settings
 
+import os
+print(f"DATABASE_URL = {os.environ.get('DATABASE_URL', 'NOT SET')}")
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=settings.DEBUG,
