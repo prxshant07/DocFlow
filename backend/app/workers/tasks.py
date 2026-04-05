@@ -233,3 +233,4 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
 
             # Retry with exponential back-off
             raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+
