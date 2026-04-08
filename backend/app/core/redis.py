@@ -7,6 +7,16 @@ from app.core.config import settings
 _redis_pool: aioredis.Redis | None = None
 
 
+async def check_redis_connection() -> bool:
+    """Check if Redis connection is healthy"""
+    try:
+        redis = await get_redis()
+        await redis.ping()
+        return True
+    except Exception:
+        return False
+
+
 async def get_redis() -> aioredis.Redis:
     global _redis_pool
     if _redis_pool is None:

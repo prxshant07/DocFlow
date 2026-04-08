@@ -3,9 +3,9 @@ from sqlalchemy.orm import DeclarativeBase
 from typing import AsyncGenerator
 
 from app.core.config import settings
+import logging
 
-import os
-print(f"DATABASE_URL = {os.environ.get('DATABASE_URL', 'NOT SET')}")
+logger = logging.getLogger(__name__)
 
 engine = create_async_engine(
     settings.DATABASE_URL,
@@ -14,6 +14,7 @@ engine = create_async_engine(
     pool_size=10,
     max_overflow=20,
 )
+logger.info(f"Database engine created (echo={settings.DEBUG})")
 
 AsyncSessionLocal = async_sessionmaker(
     engine,
@@ -24,6 +25,18 @@ AsyncSessionLocal = async_sessionmaker(
 
 class Base(DeclarativeBase):
     pass
+
+
+async def check_db_connection() -> bool:
+    """Check if database connection is healthy"""
+    try:
+        from sqlalchemy import text
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
