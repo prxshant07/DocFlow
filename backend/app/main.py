@@ -32,6 +32,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Allow framing from any origin (for embedding in dashboards/extensions)
+@app.middleware("http")
+async def add_frame_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "ALLOWALL"
+    response.headers["Content-Security-Policy"] = "frame-ancestors *"
+    return response
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
