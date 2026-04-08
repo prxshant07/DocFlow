@@ -3,8 +3,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.core.database import engine, Base
-from app.api import documents, jobs, export
 from app.core.config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -15,11 +13,16 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting up DocFlow API...")
     try:
+        # Import here to avoid circular imports and ensure settings are loaded first
+        from app.core.database import engine, Base
+        from app.api import documents, jobs, export
+
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created successfully")
+
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
+        logger.error(f"Startup failed: {e}")
         raise
     yield
     logger.info("Shutting down DocFlow API...")
@@ -32,14 +35,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow framing from any origin (for embedding in dashboards/extensions)
-@app.middleware("http")
-async def add_frame_headers(request, call_next):
-    response = await call_next(request)
-    response.headers["X-Frame-Options"] = "ALLOWALL"
-    response.headers["Content-Security-Policy"] = "frame-ancestors *"
-    return response
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -47,6 +42,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Allow framing from any origin
+@app.middleware("http")
+async def add_frame_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "ALLOWALL"
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
+
+# Import routers at module level (safe, no DB connection)
+from app.api import documents, jobs, export
 
 app.include_router(documents.router, prefix="/api/v1", tags=["documents"])
 app.include_router(jobs.router, prefix="/api/v1", tags=["jobs"])
