@@ -6,7 +6,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: `${apiBaseUrl}/:path*`,
+        destination: `${apiBaseUrl}/api/:path*`,
       },
     ];
   },
