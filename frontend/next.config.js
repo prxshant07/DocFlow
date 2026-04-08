@@ -2,7 +2,7 @@
 const nextConfig = {
   output: "standalone",
   async rewrites() {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://backend:8000";
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ;
     return [
       {
         source: "/api/:path*",
