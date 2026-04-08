@@ -34,6 +34,11 @@ app.include_router(jobs.router, prefix="/api/v1", tags=["jobs"])
 app.include_router(export.router, prefix="/api/v1", tags=["export"])
 
 
+@app.get("/")
+async def root():
+    return {"message": "DocFlow API is running", "docs": "/docs"}
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "docflow-api"}
