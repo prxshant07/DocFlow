@@ -16,7 +16,11 @@ COPY . .
 # Create upload dir
 RUN mkdir -p /tmp/docflow/uploads
 
-EXPOSE 8000
-
-ENV PORT=${PORT:-8000}
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "$PORT"]
+# Celery worker command
+CMD ["celery", "-A", "app.workers.celery_app", "worker", \
+     "--queues=documents,default", \
+     "--concurrency=4", \
+     "--loglevel=info", \
+     "--without-heartbeat", \
+     "--without-gossip", \
+     "--without-mingle"]

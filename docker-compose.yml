@@ -42,12 +42,13 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
+      PORT: "8000"
       DATABASE_URL: "postgresql+asyncpg://docflow:docflow@postgres:5432/docflow"
       DATABASE_URL_SYNC: "postgresql://docflow:docflow@postgres:5432/docflow"
       REDIS_URL: "redis://redis:6379/0"
       CELERY_BROKER_URL: "redis://redis:6379/1"
       CELERY_RESULT_BACKEND: "redis://redis:6379/2"
-      CORS_ORIGINS: '["http://localhost:3000","http://frontend:3000"]'
+      CORS_ORIGINS: '["*"]'
       DEBUG: "false"
     volumes:
       - uploads_data:/tmp/docflow/uploads

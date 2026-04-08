@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 50
 
     # CORS
-    CORS_ORIGINS: List[str] = ["https://incredible-achievement-production.up.railway.app"]
+    CORS_ORIGINS: List[str] = ["*"]
 
     class Config:
         env_file = ".env"
