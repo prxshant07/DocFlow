@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+
+  // Proxy API requests to backend
   async rewrites() {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ;
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     return [
       {
         source: "/api/:path*",
@@ -10,6 +12,8 @@ const nextConfig = {
       },
     ];
   },
+
+  // Allow framing and CORS
   async headers() {
     return [
       {
@@ -17,11 +21,29 @@ const nextConfig = {
         headers: [
           {
             key: "X-Frame-Options",
-            value: "SAMEORIGIN",
+            value: "ALLOWALL",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors *",
+          },
+          {
+            key: "Access-Control-Allow-Origin",
+            value: "*",
           },
         ],
       },
     ];
+  },
+
+  // Allow images from external sources
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+    ],
   },
 };
 
