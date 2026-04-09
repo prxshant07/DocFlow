@@ -1,4 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Use relative paths when deployed (rewrites handle /api/* → backend)
+// Use full URL for local dev with NEXT_PUBLIC_API_URL set
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1` : "/api/v1";
 
 export interface Document {
   id: string;
