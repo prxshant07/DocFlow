@@ -4,17 +4,13 @@ const nextConfig = {
 
   // Proxy API requests to backend
   async rewrites() {
+    // In production, NEXT_PUBLIC_API_URL is the backend Railway URL
+    // In local dev, use localhost:8000
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     return [
-      // Proxy /api/v1/* to backend
       {
         source: "/api/v1/:path*",
         destination: `${apiBaseUrl}/api/v1/:path*`,
-      },
-      // Also proxy legacy /api/* paths
-      {
-        source: "/api/:path*",
-        destination: `${apiBaseUrl}/api/:path*`,
       },
     ];
   },
