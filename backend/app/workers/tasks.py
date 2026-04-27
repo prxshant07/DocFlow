@@ -52,41 +52,137 @@ def _update_job_in_db(session: Session, job_id: str, **kwargs):
     return job
 
 
-# ─── Simulated Processing Logic ────────────────────────────────────────────────
+# ─── Real Document Processing Logic ────────────────────────────────────────────
 
 CATEGORIES = ["Technical Report", "Research Paper", "Business Document", "Legal Contract", "Invoice", "Manual"]
 
-def _simulate_parse(filename: str) -> dict:
-    """Mock parsing: extract raw text simulation."""
-    time.sleep(random.uniform(1.5, 3.0))  # Simulate IO-bound work
+
+def _extract_text_from_file(file_path: str) -> tuple[str, int]:
+    """Extract raw text from a file based on its extension."""
+    from pathlib import Path
+
+    ext = Path(file_path).suffix.lower()
+    text = ""
+
+    try:
+        if ext == ".pdf":
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(file_path)
+                pages = [page.extract_text() for page in reader.pages]
+                text = "\n".join(pages)
+                page_count = len(reader.pages)
+            except ImportError:
+                # Fallback: try pdfplumber
+                try:
+                    import pdfplumber
+                    with pdfplumber.open(file_path) as pdf:
+                        pages = [page.extract_text() or "" for page in pdf.pages]
+                        text = "\n".join(pages)
+                        page_count = len(pdf.pages)
+                except ImportError:
+                    text = f"[PDF file: {Path(file_path).name} - install pypdf or pdfplumber for text extraction]"
+                    page_count = 0
+        elif ext in [".docx", ".doc"]:
+            try:
+                from docx import Document
+                doc = Document(file_path)
+                text = "\n".join([para.text for para in doc.paragraphs])
+                page_count = 0  # DOCX doesn't have fixed pages
+            except ImportError:
+                text = f"[DOCX file: {Path(file_path).name} - install python-docx for text extraction]"
+                page_count = 0
+        elif ext == ".txt":
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+            page_count = text.count("\n") // 50 + 1  # Estimate
+        else:
+            # Try to read as plain text
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+            page_count = text.count("\n") // 50 + 1
+    except Exception as e:
+        text = f"[Error reading file: {str(e)}]"
+        page_count = 0
+
+    return text, page_count
+
+
+def _parse_document(file_path: str, filename: str) -> dict:
+    """Parse document and extract raw text with metadata."""
+    text, page_count = _extract_text_from_file(file_path)
+    word_count = len(text.split())
+
+    # Detect language (simple heuristic)
+    language = "English"  # Could use langdetect library
+    if any(c in text for c in "àâçéèêëïîôùûüÿ"):
+        language = "French"
+    elif any(c in text for c in "äöüß"):
+        language = "German"
+
     return {
-        "page_count": random.randint(1, 50),
-        "word_count": random.randint(200, 10000),
-        "language": "English",
+        "text": text[:50000],  # Limit for extraction
+        "page_count": page_count,
+        "word_count": word_count,
+        "language": language,
         "encoding": "UTF-8",
+        "char_count": len(text),
     }
 
 
-def _simulate_extract(parse_result: dict, filename: str) -> dict:
-    """Mock AI extraction: generate structured data from parsed text."""
-    time.sleep(random.uniform(2.0, 4.0))  # Simulate ML inference
+def _extract_structured_data(parse_result: dict, filename: str) -> dict:
+    """Extract structured data from parsed text using heuristics."""
+    text = parse_result.get("text", "")
     stem = filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").title()
-    keywords = random.sample(
-        ["analysis", "report", "data", "process", "system", "workflow",
-         "management", "strategy", "overview", "framework", "architecture"],
-        k=random.randint(3, 6)
-    )
+
+    # Generate title from first meaningful line or filename
+    title = stem
+    first_lines = [line.strip() for line in text.split("\n")[:10] if line.strip()]
+    if first_lines:
+        # Use first non-empty line as title if it's short
+        candidate = first_lines[0]
+        if len(candidate) < 100 and not candidate.startswith("http"):
+            title = candidate
+
+    # Simple category detection based on keywords
+    text_lower = text.lower()
+    if any(kw in text_lower for kw in ["invoice", "bill", "payment", "total due"]):
+        category = "Invoice"
+    elif any(kw in text_lower for kw in ["contract", "agreement", "parties", "hereby"]):
+        category = "Legal Contract"
+    elif any(kw in text_lower for kw in ["research", "study", "methodology", "results", "conclusion"]):
+        category = "Research Paper"
+    elif any(kw in text_lower for kw in ["technical", "implementation", "architecture", "system"]):
+        category = "Technical Report"
+    elif any(kw in text_lower for kw in ["manual", "guide", "instructions", "how to"]):
+        category = "Manual"
+    else:
+        category = "Business Document"
+
+    # Extract keywords (top frequent words, excluding common stop words)
+    stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "must", "shall", "can", "this", "that", "these", "those", "it", "its", "as", "from", "into", "through", "during", "before", "after", "above", "below", "between", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "just", "also"}
+    words = [w.lower() for w in text.split() if w.isalpha() and len(w) > 3]
+    word_freq = {}
+    for w in words:
+        if w not in stop_words:
+            word_freq[w] = word_freq.get(w, 0) + 1
+    keywords = sorted(word_freq.keys(), key=lambda x: word_freq[x], reverse=True)[:8]
+
+    # Generate summary from first paragraph
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    summary = ""
+    if paragraphs:
+        first_para = paragraphs[0][:500]
+        summary = f"This document appears to be a {category.lower()}. {first_para}"
+    else:
+        summary = f"Document: {title}. File contains {parse_result['word_count']:,} words across {parse_result['page_count']} pages."
+
     return {
-        "title": f"{stem} — Processed Report",
-        "category": random.choice(CATEGORIES),
-        "summary": (
-            f"This document ({stem}) contains {parse_result['word_count']:,} words across "
-            f"{parse_result['page_count']} pages. It appears to be a {random.choice(CATEGORIES).lower()} "
-            f"covering topics including {', '.join(keywords[:3])}. "
-            f"The content has been automatically extracted and structured for review."
-        ),
-        "keywords": keywords,
-        "metadata": parse_result,
+        "title": title,
+        "category": category,
+        "summary": summary,
+        "keywords": keywords if keywords else ["document"],
+        "metadata": {k: v for k, v in parse_result.items() if k != "text"},
     }
 
 
@@ -141,7 +237,7 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
             _publish(job_id, document_id, "processing", "parsing_started",
                      "Parsing document content…", 15)
 
-            parse_result = _simulate_parse(document.original_filename)
+            parse_result = _parse_document(document.file_path, document.original_filename)
 
             # ── Stage 3: parsing_completed ─────────────────────────────────
             job.current_stage = JobStage.parsing_completed
@@ -158,7 +254,7 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
             _publish(job_id, document_id, "processing", "extraction_started",
                      "Running AI extraction pipeline…", 50)
 
-            extract_result = _simulate_extract(parse_result, document.original_filename)
+            extract_result = _extract_structured_data(parse_result, document.original_filename)
 
             # ── Stage 5: extraction_completed ──────────────────────────────
             job.current_stage = JobStage.extraction_completed
