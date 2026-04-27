@@ -7,6 +7,7 @@ The FastAPI backend subscribes and streams updates to the frontend via SSE.
 
 import json
 import uuid
+import logging
 from datetime import datetime, timezone
 import redis
 from celery import Task
@@ -15,6 +16,9 @@ from sqlalchemy.orm import Session
 
 from app.workers.celery_app import celery_app
 from app.core.config import settings
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ─── Synchronous DB + Redis (Celery workers are sync) ─────────────────────────
 sync_engine = create_engine("postgresql://postgres:ZqvSPGSHLUZkzeweRLMWsPoxnxfcWRTl@postgres.railway.internal:5432/railway", pool_pre_ping=True)
@@ -58,19 +62,29 @@ CATEGORIES = ["Technical Report", "Research Paper", "Business Document", "Legal 
 def _extract_text_from_file(file_path: str) -> tuple[str, int]:
     """Extract raw text from a file based on its extension."""
     from pathlib import Path
+    import os
+
+    logger.info(f"Attempting to read file: {file_path}")
+    logger.info(f"File exists: {os.path.exists(file_path)}")
 
     ext = Path(file_path).suffix.lower()
     text = ""
 
     try:
+        if not os.path.exists(file_path):
+            logger.error(f"File not found: {file_path}")
+            return f"[File not found: {file_path}]", 0
+
         if ext == ".pdf":
             try:
                 from pypdf import PdfReader
+                logger.info("Using pypdf for PDF extraction")
                 reader = PdfReader(file_path)
                 pages = [page.extract_text() for page in reader.pages]
                 text = "\n".join(pages)
                 page_count = len(reader.pages)
             except ImportError:
+                logger.warning("pypdf not installed, trying pdfplumber")
                 # Fallback: try pdfplumber
                 try:
                     import pdfplumber
@@ -79,6 +93,7 @@ def _extract_text_from_file(file_path: str) -> tuple[str, int]:
                         text = "\n".join(pages)
                         page_count = len(pdf.pages)
                 except ImportError:
+                    logger.error("pdfplumber not installed either")
                     text = f"[PDF file: {Path(file_path).name} - install pypdf or pdfplumber for text extraction]"
                     page_count = 0
         elif ext in [".docx", ".doc"]:
@@ -216,6 +231,14 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
 
         if not job or not document:
             return {"error": "Job or document not found"}
+
+        # Skip if job already completed (prevent duplicate processing on retry)
+        if job.status == JobStatus.completed:
+            return {"status": "skipped", "reason": "job already completed"}
+
+        # Skip if job is already processing (another worker may have it)
+        if job.status == JobStatus.processing and job.started_at:
+            return {"status": "skipped", "reason": "job already being processed"}
 
         try:
             # ── Stage 1: document_received ─────────────────────────────────
