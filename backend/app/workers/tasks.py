@@ -5,10 +5,8 @@ Each stage publishes progress events via Redis Pub/Sub.
 The FastAPI backend subscribes and streams updates to the frontend via SSE.
 """
 
-import time
 import json
 import uuid
-import random
 from datetime import datetime, timezone
 import redis
 from celery import Task
@@ -228,7 +226,6 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
 
             _publish(job_id, document_id, "processing", "document_received",
                      "Document received and queued for processing", 5)
-            time.sleep(0.5)
 
             # ── Stage 2: parsing_started ───────────────────────────────────
             job.current_stage = JobStage.parsing_started
@@ -245,7 +242,6 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
 
             _publish(job_id, document_id, "processing", "parsing_completed",
                      f"Parsed {parse_result['page_count']} pages, {parse_result['word_count']:,} words", 45)
-            time.sleep(0.3)
 
             # ── Stage 4: extraction_started ────────────────────────────────
             job.current_stage = JobStage.extraction_started
@@ -262,7 +258,6 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
 
             _publish(job_id, document_id, "processing", "extraction_completed",
                      f"Extracted: '{extract_result['title']}'", 80)
-            time.sleep(0.3)
 
             # ── Stage 6: final_result_stored ───────────────────────────────
             # Upsert ExtractedData record
@@ -293,7 +288,6 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
 
             _publish(job_id, document_id, "processing", "final_result_stored",
                      "Structured data saved to database", 95)
-            time.sleep(0.2)
 
             # ── Stage 7: job_completed ─────────────────────────────────────
             job.status = JobStatus.completed

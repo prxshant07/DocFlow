@@ -5,6 +5,9 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 
+# Suppress noisy warnings from python-multipart (harmless boundary warnings)
+logging.getLogger("python_multipart").setLevel(logging.ERROR)
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
