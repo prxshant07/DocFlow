@@ -13,24 +13,27 @@ celery_app.conf.update(
     task_serializer="json",
     result_serializer="json",
     accept_content=["json"],
-    
+
     # Timezone
     timezone="UTC",
     enable_utc=True,
-    
+
     # Task behavior
     task_track_started=True,
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    worker_prefetch_multiplier=1,  # One task per worker at a time for fairness
-    
+    worker_prefetch_multiplier=1,
+
     # Retry policy defaults
     task_max_retries=3,
-    task_default_retry_delay=5,  # seconds
-    
+    task_default_retry_delay=5,
+
     # Result expiry
-    result_expires=86400,  # 24 hours
-    
+    result_expires=86400,
+
+    # Allow larger task messages for file content
+    task_message_compression="gzip",
+
     # Queues
     task_default_queue="default",
     task_routes={

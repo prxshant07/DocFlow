@@ -32,8 +32,13 @@ async def upload_documents(
         doc = await document_service.save_upload(file, db)
         await db.flush()
 
-        # Enqueue Celery task AFTER the record is flushed
-        task = process_document_task.delay(doc.id, doc.job.id)
+        # Read file content to pass to worker (avoids shared filesystem requirement)
+        content = await file.read()
+        import base64
+        content_b64 = base64.b64encode(content).decode('ascii')
+
+        # Enqueue Celery task with file content (not path)
+        task = process_document_task.delay(doc.id, doc.job.id, content_b64, file.filename)
 
         # Store celery task ID on the job
         doc.job.celery_task_id = task.id

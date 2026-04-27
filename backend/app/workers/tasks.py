@@ -8,6 +8,9 @@ The FastAPI backend subscribes and streams updates to the frontend via SSE.
 import json
 import uuid
 import logging
+import base64
+import tempfile
+import os
 from datetime import datetime, timezone
 import redis
 from celery import Task
@@ -209,7 +212,7 @@ def _extract_structured_data(parse_result: dict, filename: str) -> dict:
     soft_time_limit=300,
     time_limit=360,
 )
-def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
+def process_document_task(self: Task, document_id: str, job_id: str, file_content_b64: str = None, filename: str = None) -> dict:
     """
     Main document processing pipeline.
 
@@ -240,6 +243,21 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
         if job.status == JobStatus.processing and job.started_at:
             return {"status": "skipped", "reason": "job already being processed"}
 
+        # Decode file content and write to temp file
+        if not file_content_b64:
+            # Fallback: try to read from stored path (for backwards compatibility)
+            file_path = document.file_path
+            original_filename = document.original_filename
+        else:
+            content = base64.b64decode(file_content_b64)
+            # Create temp file for processing
+            fd, file_path = tempfile.mkstemp(suffix=f"_{filename or 'document'}")
+            try:
+                os.write(fd, content)
+            finally:
+                os.close(fd)
+            original_filename = filename or document.original_filename
+
         try:
             # ── Stage 1: document_received ─────────────────────────────────
             job.status = JobStatus.processing
@@ -257,7 +275,7 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
             _publish(job_id, document_id, "processing", "parsing_started",
                      "Parsing document content…", 15)
 
-            parse_result = _parse_document(document.file_path, document.original_filename)
+            parse_result = _parse_document(file_path, original_filename)
 
             # ── Stage 3: parsing_completed ─────────────────────────────────
             job.current_stage = JobStage.parsing_completed
@@ -344,4 +362,13 @@ def process_document_task(self: Task, document_id: str, job_id: str) -> dict:
 
             # Retry with exponential back-off
             raise self.retry(exc=exc, countdown=2 ** self.request.retries)
+
+        finally:
+            # Clean up temp file if we created one from base64 content
+            if file_content_b64 and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    logger.info(f"Cleaned up temp file: {file_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temp file: {e}")
 
