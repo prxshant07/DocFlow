@@ -62,6 +62,9 @@ class DocumentService:
         db.add(job)
         await db.flush()
 
+        # Pre-load job relationship to avoid lazy-load in async context
+        await db.refresh(document, attribute_names=["job"])
+
         return document
 
     async def get_document(self, document_id: str, db: AsyncSession) -> Document:
