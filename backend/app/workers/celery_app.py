@@ -31,9 +31,6 @@ celery_app.conf.update(
     # Result expiry
     result_expires=86400,
 
-    # Allow larger task messages for file content
-    task_message_compression="gzip",
-
     # Queues
     task_default_queue="default",
     task_routes={
