@@ -95,7 +95,7 @@ celery -A app.workers.celery_app worker --queues=documents,default --loglevel=in
 ```bash
 cd frontend
 npm install
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev
+NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 ```
 
 ---

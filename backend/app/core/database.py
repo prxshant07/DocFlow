@@ -7,8 +7,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+database_url = settings.DATABASE_URL
+if database_url is None:
+    raise RuntimeError("DATABASE_URL must be set")
+
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    database_url,
     echo=settings.DEBUG,
     pool_pre_ping=True,
     pool_size=10,

@@ -29,7 +29,7 @@ WORKER_PID=$!
 
 echo "==> Starting Next.js frontend on :3000"
 cd "$FRONTEND_DIR"
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev &
+NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev &
 FRONTEND_PID=$!
 
 echo ""

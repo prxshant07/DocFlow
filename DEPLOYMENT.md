@@ -94,7 +94,7 @@ BACKEND_URL=$(railway service --service backend --url)
 
 # Set environment variables
 railway variables set --service frontend \
-  NEXT_PUBLIC_API_URL="$BACKEND_URL/api/v1" \
+  NEXT_PUBLIC_API_URL="$BACKEND_URL" \
   NODE_ENV="production"
 ```
 
@@ -139,7 +139,7 @@ railway variables set --service backend CORS_ORIGINS='["https://docflow.yourdoma
 ### Frontend
 | Variable | Value |
 |----------|-------|
-| `NEXT_PUBLIC_API_URL` | `<backend-service-url>/api/v1` |
+| `NEXT_PUBLIC_API_URL` | `<backend-service-url>` |
 | `NODE_ENV` | `production` |
 
 ---
