@@ -24,6 +24,11 @@ export interface DocumentListItem {
   job?: Job;
 }
 
+export interface DocumentListResponse {
+  items: DocumentListItem[];
+  total: number;
+}
+
 export interface Job {
   id: string;
   document_id: string;
@@ -60,11 +65,31 @@ export interface ProgressEvent {
   error?: string;
 }
 
-export interface DocumentListResponse {
-  items: DocumentListItem[];
-  total: number;
-  limit: number;
-  offset: number;
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+}
+
+export interface UserLogin {
+  email: string;
+  password: string;
+}
+
+export interface UserRegister {
+  email: string;
+  password: string;
+  full_name?: string;
+}
+
+export interface UserResponse {
+  id: string;
+  email: string;
+  full_name?: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  user: UserResponse;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -83,11 +108,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    // Handle 401 Unauthorized by clearing token and redirecting to login
+    // Handle 401 Unauthorized by clearing token
     if (res.status === 401) {
       localStorage.removeItem("token");
-      // In a real app, we'd use router to redirect, but we can't use hooks here
-      // The component using this should handle 401 errors
     }
 
     const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -98,6 +121,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // Auth
+  login: async (credentials: UserLogin): Promise<AuthResponse> =>
+    request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    }),
+
+  register: async (userData: UserRegister): Promise<AuthResponse> =>
+    request("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(userData),
+    }),
+
+  logout: async (): Promise<void> =>
+    request("/auth/logout", {
+      method: "POST",
+    }),
+
   // Upload
   upload: async (files: File[]): Promise<Document[]> => {
     const form = new FormData();

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/auth-context";
+import { useAuth } from "@/lib/auth-context";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "⊞" },

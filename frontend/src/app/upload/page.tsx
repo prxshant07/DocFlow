@@ -184,7 +184,7 @@ export default function UploadPage() {
                   onComplete={() => {
                     updateItem(i, {
                       status: "completed",
-                      document: { ...item.document!, job: { ...item.document!.job!, status: "completed" } },
+                      document: { ...item.document!, job: { ...item.document!.job!, status: "completed" } }
                     });
                   }}
                 />
