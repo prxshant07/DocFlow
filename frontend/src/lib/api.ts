@@ -68,14 +68,32 @@ export interface DocumentListResponse {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Get token from localStorage
+  const token = localStorage.getItem("token");
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(init?.headers as HeadersInit || {}),
+  };
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers,
     ...init,
   });
+
   if (!res.ok) {
+    // Handle 401 Unauthorized by clearing token and redirecting to login
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      // In a real app, we'd use router to redirect, but we can't use hooks here
+      // The component using this should handle 401 errors
+    }
+
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail ?? "Request failed");
   }
+
   return res.json();
 }
 
@@ -127,7 +145,12 @@ export const api = {
 
   // SSE progress stream
   subscribeProgress: (jobId: string, onEvent: (e: ProgressEvent) => void, onClose: () => void): EventSource => {
-    const es = new EventSource(`${API_BASE}/progress/${jobId}`);
+    const token = localStorage.getItem("token");
+    const url = new URL(`${API_BASE}/progress/${jobId}`);
+    if (token) {
+      url.searchParams.set("token", token);
+    }
+    const es = new EventSource(url.toString());
     es.onmessage = (e) => {
       const data: ProgressEvent = JSON.parse(e.data);
       if (data.status === "stream_closed") {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, type DocumentListItem } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useAuth } from "@/lib/auth-context";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -21,10 +22,18 @@ function formatDate(iso: string) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [docs, setDocs] = useState<DocumentListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
 
   // Filters
   const [search, setSearch] = useState("");

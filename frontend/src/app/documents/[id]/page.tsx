@@ -6,6 +6,7 @@ import Link from "next/link";
 import { api, type Document, type ExtractedData } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ProgressTracker } from "@/components/progress/ProgressTracker";
+import { useAuth } from "@/lib/auth-context";
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -19,6 +20,14 @@ function formatDate(iso: string) {
 export default function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
 
   const [doc, setDoc] = useState<Document | null>(null);
   const [loading, setLoading] = useState(true);

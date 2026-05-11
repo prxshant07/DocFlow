@@ -37,7 +37,7 @@ class JobService:
         job.completed_at = datetime.utcnow()
         return job
 
-    async def retry_job(self, document_id: str, db: AsyncSession) -> Job:
+    async def retry_job(self, document_id: str, user_id: str, db: AsyncSession) -> Job:
         """Reset a failed job to queued state and enqueue a new Celery task."""
         # Import here to avoid circular imports
         from app.workers.tasks import process_document_task

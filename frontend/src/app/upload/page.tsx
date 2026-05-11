@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { api, type Document } from "@/lib/api";
 import { ProgressTracker } from "@/components/progress/ProgressTracker";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useAuth } from "@/lib/auth-context";
 
 interface UploadItem {
   file: File;
@@ -21,10 +22,17 @@ function formatBytes(bytes: number) {
 
 export default function UploadPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  // Redirect to login if not authenticated
+  if (!user) {
+    // Note: We can't redirect here because we're in the middle of rendering
+    // We'll handle this in a useEffect instead
+  }
 
   const updateItem = useCallback((index: number, patch: Partial<UploadItem>) => {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
