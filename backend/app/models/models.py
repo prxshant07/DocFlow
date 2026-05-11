@@ -2,9 +2,35 @@ import uuid
 from datetime import datetime
 from sqlalchemy import String, Integer, DateTime, ForeignKey, Text, JSON, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import List
 import enum
+from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.core.database import Base
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    documents: Mapped[List["Document"]] = relationship("Document", back_populates="user", cascade="all, delete-orphan")
+    jobs: Mapped[List["Job"]] = relationship("Job", back_populates="user", cascade="all, delete-orphan")
+
+    def set_password(self, password: str) -> None:
+        """Hash and set password."""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        """Check if provided password matches hash."""
+        return check_password_hash(self.password_hash, password)
 
 
 class JobStatus(str, enum.Enum):
@@ -36,10 +62,12 @@ class Document(Base):
     file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
     upload_timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     is_finalized: Mapped[bool] = mapped_column(default=False)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
 
     # Relationships
     job: Mapped["Job"] = relationship("Job", back_populates="document", uselist=False, cascade="all, delete-orphan")
     extracted_data: Mapped["ExtractedData"] = relationship("ExtractedData", back_populates="document", uselist=False, cascade="all, delete-orphan")
+    user: Mapped["User"] = relationship("User", back_populates="documents")
 
 
 class Job(Base):
@@ -47,6 +75,7 @@ class Job(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     document_id: Mapped[str] = mapped_column(String(36), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     celery_task_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
     status: Mapped[JobStatus] = mapped_column(SAEnum(JobStatus), default=JobStatus.queued)
     current_stage: Mapped[JobStage | None] = mapped_column(SAEnum(JobStage), nullable=True)
@@ -58,6 +87,7 @@ class Job(Base):
 
     # Relationships
     document: Mapped["Document"] = relationship("Document", back_populates="job")
+    user: Mapped["User"] = relationship("User", back_populates="jobs")
 
 
 class ExtractedData(Base):

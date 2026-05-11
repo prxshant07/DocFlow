@@ -1,9 +1,10 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
+from app.core.deps import get_current_active_user
 
 # Suppress noisy warnings from python-multipart (harmless boundary warnings)
 logging.getLogger("python_multipart").setLevel(logging.ERROR)
@@ -18,7 +19,7 @@ async def lifespan(app: FastAPI):
     try:
         # Import here to avoid circular imports and ensure settings are loaded first
         from app.core.database import engine, Base
-        from app.api import documents, jobs, export
+        from app.api import documents, jobs, export, auth
 
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
@@ -55,11 +56,28 @@ async def add_frame_headers(request, call_next):
     return response
 
 # Import routers at module level (safe, no DB connection)
-from app.api import documents, jobs, export
+from app.api import documents, jobs, export, auth
 
-app.include_router(documents.router, prefix="/api/v1", tags=["documents"])
-app.include_router(jobs.router, prefix="/api/v1", tags=["jobs"])
-app.include_router(export.router, prefix="/api/v1", tags=["export"])
+# Apply authentication dependency to all API routes except auth and health
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(
+    documents.router,
+    prefix="/api/v1",
+    tags=["documents"],
+    dependencies=[Depends(get_current_active_user)]
+)
+app.include_router(
+    jobs.router,
+    prefix="/api/v1",
+    tags=["jobs"],
+    dependencies=[Depends(get_current_active_user)]
+)
+app.include_router(
+    export.router,
+    prefix="/api/v1",
+    tags=["export"],
+    dependencies=[Depends(get_current_active_user)]
+)
 
 
 @app.get("/")

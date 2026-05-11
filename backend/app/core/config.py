@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "DocFlow"
     DEBUG: bool = False
 
+    # Security
+    SECRET_KEY: str = "your-secret-key-here-change-in-production"
+
     # Database - allow Railway's default DATABASE_URL (postgres://)
     DATABASE_URL: Optional[str] = None
     DATABASE_URL_SYNC: Optional[str] = None

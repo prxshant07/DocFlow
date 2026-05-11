@@ -3,6 +3,7 @@ import uuid
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -15,7 +16,7 @@ from app.schemas.schemas import DocumentListItem, DocumentResponse, ExtractedDat
 
 class DocumentService:
 
-    async def save_upload(self, file: UploadFile, db: AsyncSession) -> Document:
+    async def save_upload(self, file: UploadFile, db: AsyncSession, user_id: str) -> Document:
         """Persist uploaded file to disk and create Document + Job records."""
         # Validate file size
         content = await file.read()
@@ -50,6 +51,7 @@ class DocumentService:
             file_type=content_type,
             file_size=len(content),
             file_path=str(file_path),
+            user_id=user_id,
             upload_timestamp=datetime.utcnow(),
         )
         db.add(document)
@@ -57,6 +59,7 @@ class DocumentService:
         # Create associated Job record
         job = Job(
             document_id=document.id,
+            user_id=user_id,
             status=JobStatus.queued,
         )
         db.add(job)
@@ -84,6 +87,7 @@ class DocumentService:
     async def list_documents(
         self,
         db: AsyncSession,
+        user_id: str,
         search: str | None = None,
         status: str | None = None,
         sort_by: str = "upload_timestamp",
@@ -94,6 +98,7 @@ class DocumentService:
         query = (
             select(Document)
             .options(selectinload(Document.job))
+            .where(Document.user_id == user_id)
             .offset(offset)
             .limit(limit)
         )
@@ -117,7 +122,7 @@ class DocumentService:
         documents = result.scalars().all()
 
         # Count total for pagination
-        count_query = select(Document)
+        count_query = select(Document).where(Document.user_id == user_id)
         if status:
             count_query = count_query.join(Document.job).where(Job.status == status)
         if search:
