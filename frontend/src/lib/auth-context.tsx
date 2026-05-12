@@ -33,25 +33,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing token on load
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      // Try to get user info from the token or an endpoint
-      // For now, we'll decode the JWT to get user info
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({
-          id: payload.sub,
-          email: payload.email,
-          full_name: payload.full_name,
-        });
-      } catch (e) {
-        // Invalid token
-        localStorage.removeItem("token");
-      }
+      api.getMe()
+        .then((user) => setUser(user))
+        .catch(() => {
+          localStorage.removeItem("token");
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -79,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       throw new Error("Registration failed");
     }
-  }
+  };
 
   if (isLoading) {
     return <div>Loading...</div>;
