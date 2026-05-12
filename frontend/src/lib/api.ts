@@ -122,17 +122,33 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   // Auth
-  login: async (credentials: UserLogin): Promise<AuthResponse> =>
-    request("/auth/login", {
+  login: async (credentials: UserLogin): Promise<TokenResponse> => {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
-      body: JSON.stringify(credentials),
-    }),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: new URLSearchParams({
+        username: credentials.email,  // OAuth2 spec requires "username"
+        password: credentials.password,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail ?? "Login failed");
+    }
+    return res.json();
+  },
 
-  register: async (userData: UserRegister): Promise<AuthResponse> =>
+  register: async (userData: UserRegister): Promise<TokenResponse> =>
     request("/auth/register", {
       method: "POST",
       body: JSON.stringify(userData),
     }),
+    getMe: (): Promise<UserResponse> => request("/auth/me"),
+
 
   logout: async (): Promise<void> =>
     request("/auth/logout", {

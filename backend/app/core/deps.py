@@ -4,9 +4,9 @@ from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from .security import verify_token, TokenData
-from ..db import get_db
-from ..models.user import User
+from app.core.security import verify_token, TokenData
+from app.core.database import get_db
+from app.models.models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

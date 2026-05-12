@@ -3,6 +3,18 @@ from datetime import datetime
 from typing import Any
 from app.models.models import JobStatus, JobStage
 
+class UserSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    email: str
+    is_active: int
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str | None = None
+
 
 # ── Document Schemas ──────────────────────────────────────────────────────────
 

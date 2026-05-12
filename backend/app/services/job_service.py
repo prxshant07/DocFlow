@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models.models import Job, Document, JobStatus
-from app.schemas.schemas import JobResponse
 
 
 class JobService:

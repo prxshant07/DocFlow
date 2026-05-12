@@ -59,7 +59,7 @@ async def add_frame_headers(request, call_next):
 from app.api import documents, jobs, export, auth
 
 # Apply authentication dependency to all API routes except auth and health
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(
     documents.router,
     prefix="/api/v1",

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,24 +13,20 @@ from ..core.security import (
     Token,
     TokenData,
 )
-from ..core.deps import get_current_active_user
-from ..crud import user as user_crud
-from ..db import get_db
-from ..models.user import User
+from app.core.deps import get_current_active_user
+from app.core.database import get_db
+from app.schemas.schemas import UserSchema, RegisterRequest
+from app.models.models import User
 
 router = APIRouter()
 
 
 @router.post("/register", response_model=Token)
 async def register(
-    email: str,
-    password: str,
-    full_name: Optional[str] = None,
+    body: RegisterRequest,          # ← JSON body instead of query params
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new user."""
-    # Check if user already exists
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(select(User).where(User.email == body.email))
     existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
@@ -37,23 +34,19 @@ async def register(
             detail="Email already registered",
         )
 
-    # Create new user
-    hashed_password = get_password_hash(password)
+    hashed_password = get_password_hash(body.password)
     new_user = User(
-        email=email,
+        email=body.email,
         password_hash=hashed_password,
-        full_name=full_name,
+        full_name=body.full_name,
     )
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
 
-    # Create access token
-    access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
-        data={"sub": new_user.id}, expires_delta=access_token_expires
+        data={"sub": new_user.id}, expires_delta=timedelta(minutes=30)
     )
-
     return Token(access_token=access_token, token_type="bearer")
 
 
@@ -94,7 +87,7 @@ async def logout():
     return {"msg": "Successfully logged out"}
 
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=UserSchema)
 async def read_users_me(
     current_user: User = Depends(get_current_active_user),
 ):

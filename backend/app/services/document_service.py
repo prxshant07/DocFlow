@@ -32,7 +32,7 @@ class DocumentService:
 
         # Generate unique filename to avoid collisions
         file_id = str(uuid.uuid4())
-        extension = Path(file.filename).suffix
+        extension = Path(file.filename or "").suffix
         stored_filename = f"{file_id}{extension}"
         file_path = upload_dir / stored_filename
 

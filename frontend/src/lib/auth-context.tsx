@@ -58,7 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.login({ email, password });
       localStorage.setItem("token", response.access_token);
-      setUser(response.user);
+      const user = await api.getMe();
+      setUser(user);
     } catch (error) {
       throw new Error("Login failed");
     }
@@ -73,11 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await api.register({ email, password, full_name });
       localStorage.setItem("token", response.access_token);
-      setUser(response.user);
+      const user = await api.getMe();
+      setUser(user);
     } catch (error) {
       throw new Error("Registration failed");
     }
-  };
+  }
 
   if (isLoading) {
     return <div>Loading...</div>;
