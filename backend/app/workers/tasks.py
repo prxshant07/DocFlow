@@ -22,6 +22,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ─── Synchronous DB + Redis (Celery workers are sync) ─────────────────────────
+if not settings.DATABASE_URL_SYNC:
+    raise ValueError("DATABASE_URL_SYNC is not configured")
 sync_engine = create_engine(settings.DATABASE_URL_SYNC, pool_pre_ping=True)
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
