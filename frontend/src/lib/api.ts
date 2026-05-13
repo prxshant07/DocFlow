@@ -159,8 +159,21 @@ export const api = {
   upload: async (files: File[]): Promise<Document[]> => {
     const form = new FormData();
     files.forEach((f) => form.append("files", f));
-    const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: form });
-    if (!res.ok) throw new Error("Upload failed");
+
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${API_BASE}/upload`, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Do NOT set Content-Type — browser sets it automatically with multipart boundary
+      },
+      body: form,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail ?? "Upload failed");
+    }
     return res.json();
   },
 
@@ -203,7 +216,7 @@ export const api = {
   // SSE progress stream
   subscribeProgress: (jobId: string, onEvent: (e: ProgressEvent) => void, onClose: () => void): EventSource => {
     const token = localStorage.getItem("token");
-    const url = new URL(`${API_BASE}/progress/${jobId}`);
+    const url = new URL(`${window.location.origin}/api/v1/progress/${jobId}`);
     if (token) {
       url.searchParams.set("token", token);
     }

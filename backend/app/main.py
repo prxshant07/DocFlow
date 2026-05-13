@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting up DocFlow API...")
     try:
-        # Import here to avoid circular imports and ensure settings are loaded first
         from app.core.database import engine, Base
         from app.api import documents, jobs, export, auth
 
@@ -47,18 +46,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Allow framing from any origin
+
 @app.middleware("http")
 async def add_frame_headers(request, call_next):
     response = await call_next(request)
     response.headers["X-Frame-Options"] = "ALLOWALL"
-    response.headers["Access-Control-Allow-Origin"] = "*"
     return response
 
-# Import routers at module level (safe, no DB connection)
+
 from app.api import documents, jobs, export, auth
 
-# Apply authentication dependency to all API routes except auth and health
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(
     documents.router,

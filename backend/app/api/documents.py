@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, File, UploadFile, Query, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, Query, HTTPException, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import Base
 from app.core.database import get_db
@@ -89,16 +90,36 @@ async def get_document(document_id: str, db: AsyncSession = Depends(get_db), cur
 
 
 @router.get("/progress/{job_id}")
-async def stream_job_progress(job_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+async def stream_job_progress(
+    job_id: str,
+    token: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Server-Sent Events endpoint for real-time job progress.
-
-    The Celery worker publishes events to Redis Pub/Sub; this endpoint
-    subscribes and streams them to the client as SSE.
+    Token is passed as query param because EventSource can't send headers.
     """
-    # Verify job exists and belongs to current user
+    from jose import JWTError
+    from app.core.security import verify_token
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+    )
+    try:
+        payload = verify_token(token)
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise credentials_exception
+
     job = await job_service.get_job(job_id, db)
-    # TODO: Add authorization check to ensure user owns the job (via document)
 
     async def event_generator():
         async for event in subscribe_to_job(job_id):
@@ -106,7 +127,6 @@ async def stream_job_progress(job_id: str, db: AsyncSession = Depends(get_db), c
             yield f"data: {json.dumps(event)}\n\n"
             if event.get("status") in ("job_completed", "job_failed"):
                 break
-        # Send a close sentinel
         yield "data: {\"status\": \"stream_closed\"}\n\n"
 
     return StreamingResponse(

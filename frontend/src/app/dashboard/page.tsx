@@ -22,7 +22,7 @@ function formatDate(iso: string) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const [docs, setDocs] = useState<DocumentListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -30,10 +30,10 @@ export default function DashboardPage() {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!user) {
+    if (!isLoading && !user) {
       router.push("/login");
     }
-  }, [user, router]);
+  }, [user, isLoading, router]);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -44,6 +44,7 @@ export default function DashboardPage() {
   const LIMIT = 20;
 
   const fetchDocs = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     setError(null);
     try {
@@ -62,7 +63,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, status, sortBy, order, offset]);
+  }, [search, status, sortBy, order, offset, user]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
 
@@ -80,6 +81,14 @@ export default function DashboardPage() {
     completed: docs.filter((d) => d.job?.status === "completed").length,
     failed: docs.filter((d) => d.job?.status === "failed").length,
   };
+
+  // Show nothing while auth is loading
+  if (isLoading) {
+    return <div className="empty-state"><div className="spinner" /></div>;
+  }
+
+  // Don't render if not authenticated
+  if (!user) return null;
 
   return (
     <div>

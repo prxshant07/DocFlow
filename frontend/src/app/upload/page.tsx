@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, type Document } from "@/lib/api";
@@ -22,17 +22,17 @@ function formatBytes(bytes: number) {
 
 export default function UploadPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [items, setItems] = useState<UploadItem[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  // Redirect to login if not authenticated
-  if (!user) {
-    // Note: We can't redirect here because we're in the middle of rendering
-    // We'll handle this in a useEffect instead
-  }
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, isLoading, router]);
 
   const updateItem = useCallback((index: number, patch: Partial<UploadItem>) => {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -61,7 +61,6 @@ export default function UploadPage() {
 
     setUploading(true);
 
-    // Upload all pending files in one batch request
     const pendingIndices = items
       .map((item, i) => ({ item, i }))
       .filter(({ item }) => item.status === "pending");
@@ -70,7 +69,6 @@ export default function UploadPage() {
 
     try {
       const docs = await api.upload(pendingIndices.map(({ item }) => item.file));
-
       docs.forEach((doc, di) => {
         const { i } = pendingIndices[di];
         updateItem(i, { status: "processing", document: doc });
@@ -88,6 +86,12 @@ export default function UploadPage() {
 
   const pendingCount = items.filter((i) => i.status === "pending").length;
   const allDone = items.length > 0 && items.every((i) => i.status === "completed" || i.status === "failed");
+
+  if (isLoading) {
+    return <div className="empty-state"><div className="spinner" /></div>;
+  }
+
+  if (!user) return null;
 
   return (
     <div>
